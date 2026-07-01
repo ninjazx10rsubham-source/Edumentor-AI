@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cohort — Academic Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+/* Apply saved theme before first paint to avoid a flash */
+(function(){
+  try{
+    var t = localStorage.getItem('aiml_tracker_theme');
+    if(t === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); }
+  }catch(e){}
+})();
+</script>
+<style>
+:root{
+  /* Light / corporate (default) */
+  --bg:#F5F6F8; --surface:#FFFFFF; --surface2:#F0F2F5; --surface3:#E7EAEF;
+  --border:#DFE3E9; --border-strong:#C4CAD4;
+  --text:#161B26; --muted:#5B6472; --dim:#8992A3;
+  --navy:#1F3A5F; --navy-ink:#16283F; --navy-dim:#E8EDF4;
+  --gold:#9C7A34; --gold-dim:#F3ECDA;
+  --green:#2E7D57; --green-dim:#E3F2EA;
+  --red:#AC3B3B; --red-dim:#F8E9E9;
+  --radius:8px;
+  --shadow-sm:0 1px 2px rgba(22,28,45,0.06);
+  --shadow-md:0 4px 16px rgba(22,28,45,0.08);
+}
+[data-theme="dark"]{
+  --bg:#0E121B; --surface:#151A26; --surface2:#1B2130; --surface3:#232B3C;
+  --border:#2A3242; --border-strong:#3A4459;
+  --text:#E8EAEF; --muted:#9AA3B5; --dim:#6C7688;
+  --navy:#8CADDA; --navy-ink:#B9CDEA; --navy-dim:#1D2A3E;
+  --gold:#D8B978; --gold-dim:#2E2716;
+  --green:#67C79B; --green-dim:#173327;
+  --red:#E38484; --red-dim:#331C1C;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:0 8px 24px rgba(0,0,0,0.4);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Inter',sans-serif; font-size:14.5px; line-height:1.6;
+  min-height:100vh;
+  transition:background .2s ease, color .2s ease;
+}
+.mono{font-family:'IBM Plex Mono',monospace;}
+h1,h2,h3,.disp,.serif{font-family:'Fraunces',serif;}
+::selection{background:var(--navy-dim); color:var(--navy);}
+a{color:var(--navy);}
+button{font-family:'Inter',sans-serif; cursor:pointer;}
+input,textarea,select{font-family:'Inter',sans-serif;}
+
+/* ---- AUTH SCREEN ---- */
+#auth-screen{
+  min-height:100vh; display:flex; align-items:stretch; justify-content:center;
+}
+.auth-split{display:flex; width:100%; max-width:1040px; margin:auto; box-shadow:var(--shadow-md); border-radius:14px; overflow:hidden; background:var(--surface);}
+.auth-side{
+  flex:1; background:var(--navy); color:#F5F1E6; padding:48px 42px;
+  display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden;
+}
+.auth-side::after{
+  content:""; position:absolute; right:-60px; bottom:-60px; width:220px; height:220px;
+  border:1px solid rgba(245,241,230,0.15); border-radius:50%;
+}
+.auth-side::before{
+  content:""; position:absolute; right:20px; bottom:40px; width:120px; height:120px;
+  border:1px solid rgba(245,241,230,0.12); border-radius:50%;
+}
+.auth-crest{width:44px; height:44px; border-radius:6px; border:1.5px solid rgba(245,241,230,0.5); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:19px;}
+.auth-side-title{font-family:'Fraunces',serif; font-size:30px; font-weight:600; margin-top:28px; line-height:1.2;}
+.auth-side-copy{font-size:13.5px; color:rgba(245,241,230,0.75); margin-top:14px; max-width:290px; line-height:1.65;}
+.auth-side-quote{font-size:12px; color:rgba(245,241,230,0.55); line-height:1.6; position:relative; z-index:1;}
+
+.auth-form-side{flex:1; padding:44px 42px; display:flex; flex-direction:column; justify-content:center; min-width:0;}
+.auth-title{font-size:19px; font-weight:600; font-family:'Fraunces',serif;}
+.auth-sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+.auth-tabs{display:flex; border-bottom:1px solid var(--border); margin:22px 0 22px;}
+.auth-tab{flex:1; text-align:center; padding:10px 4px; font-size:13px; font-weight:600; color:var(--muted); background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px;}
+.auth-tab.active{color:var(--navy); border-bottom-color:var(--navy);}
+.auth-form{display:none; flex-direction:column; gap:12px;}
+.auth-form.active{display:flex;}
+.auth-form .field label{font-size:11.5px; color:var(--muted); font-weight:600; display:block; margin-bottom:5px; letter-spacing:.2px;}
+.auth-form input,.auth-form select{width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:7px; padding:9px 11px; color:var(--text); font-size:13.5px; outline:none;}
+.auth-form input:focus,.auth-form select:focus{border-color:var(--navy); background:var(--surface);}
+.auth-error{font-size:12.5px; color:var(--red); background:var(--red-dim); border:1px solid var(--red); border-color:color-mix(in srgb, var(--red) 35%, transparent); padding:8px 12px; border-radius:7px; display:none;}
+.auth-note{font-size:11px; color:var(--dim); margin-top:18px; line-height:1.55;}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+@media(max-width:760px){.auth-side{display:none;} .auth-split{max-width:440px;}}
+
+/* ---- Shell layout ---- */
+#app-screen{display:none;}
+.shell{display:flex; min-height:100vh;}
+.sidebar{
+  width:236px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border);
+  padding:22px 16px; display:flex; flex-direction:column; gap:20px; position:sticky; top:0; height:100vh;
+}
+.brand{display:flex; align-items:center; gap:10px; padding:2px 4px 14px; border-bottom:1px solid var(--border);}
+.brand-mark{
+  width:32px; height:32px; border-radius:6px; background:var(--navy); border:1px solid var(--navy-ink);
+  display:flex; align-items:center; justify-content:center; font-weight:600; color:#F5F1E6; font-size:14px; font-family:'Fraunces',serif;
+}
+.brand-name{font-weight:600; font-size:14.5px; letter-spacing:-0.1px; font-family:'Fraunces',serif;}
+.brand-sub{font-size:10.5px; color:var(--dim);}
+
+.profile-card{background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:13px;}
+.profile-top{display:flex; align-items:center; gap:10px;}
+.profile-avatar{width:34px; height:34px; border-radius:6px; background:var(--navy); color:#F5F1E6; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:12.5px; font-family:'Fraunces',serif; flex-shrink:0;}
+.profile-name{font-weight:600; font-size:13px;}
+.profile-role{font-size:11px; color:var(--muted); margin-top:1px;}
+.profile-uni{font-size:10.5px; color:var(--dim); margin-top:8px; line-height:1.45; padding-top:8px; border-top:1px dashed var(--border);}
+
+nav{display:flex; flex-direction:column; gap:1px; flex:1;}
+.nav-eyebrow{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px; font-weight:600; padding:2px 10px 6px;}
+.nav-item{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; color:var(--muted); font-size:13px; font-weight:500; cursor:pointer; border:none; background:none; text-align:left; width:100%; transition:background .12s, color .12s;}
+.nav-item:hover{background:var(--surface2); color:var(--text);}
+.nav-item.active{background:var(--navy-dim); color:var(--navy); font-weight:600;}
+.nav-icon{width:16px; text-align:center; font-size:13px; opacity:.85;}
+
+.theme-toggle-row{display:flex; align-items:center; justify-content:space-between; padding:9px 10px; border:1px solid var(--border); border-radius:7px; background:var(--surface2);}
+.theme-toggle-label{font-size:11.5px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:6px;}
+.switch{position:relative; width:36px; height:20px; flex-shrink:0;}
+.switch input{opacity:0; width:0; height:0; position:absolute;}
+.switch-track{position:absolute; inset:0; background:var(--border-strong); border-radius:20px; transition:background .18s ease; cursor:pointer;}
+.switch-thumb{position:absolute; top:2px; left:2px; width:16px; height:16px; background:#fff; border-radius:50%; transition:transform .18s ease; box-shadow:0 1px 2px rgba(0,0,0,.25);}
+.switch input:checked + .switch-track{background:var(--navy);}
+.switch input:checked + .switch-track .switch-thumb{transform:translateX(16px);}
+
+.sidebar-footer{font-size:10px; color:var(--dim); padding:0 2px; line-height:1.5;}
+.logout-btn{width:100%; text-align:left; background:none; border:1px solid var(--border); color:var(--muted); padding:8px 10px; border-radius:7px; font-size:12px;}
+.logout-btn:hover{border-color:var(--red); color:var(--red);}
+
+.main{flex:1; min-width:0; padding:30px 40px 60px; max-width:1180px;}
+.view{display:none;}
+.view.active{display:block;}
+.page-head{margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid var(--border);}
+.page-eyebrow{font-size:11px; color:var(--navy); text-transform:uppercase; letter-spacing:1.2px; font-weight:700; margin-bottom:7px;}
+.page-title{font-size:25px; font-weight:600; letter-spacing:-0.3px; font-family:'Fraunces',serif;}
+.page-desc{color:var(--muted); font-size:13px; margin-top:6px; max-width:640px;}
+
+.grid{display:grid; gap:14px;}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-2{grid-template-columns:2fr 1fr;}
+@media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:1fr;} .grid-2{grid-template-columns:1fr;}}
+
+.card{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px 20px; box-shadow:var(--shadow-sm);}
+.stat-card{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:15px 17px; box-shadow:var(--shadow-sm);}
+.stat-label{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.7px; font-weight:700;}
+.stat-value{font-size:27px; font-weight:600; margin-top:7px; font-family:'Fraunces',serif; padding-bottom:9px; border-bottom:1px solid var(--border);}
+.stat-sub{font-size:11.5px; color:var(--dim); margin-top:7px;}
+.stat-amber .stat-value{color:var(--gold);}
+.stat-mint .stat-value{color:var(--green);}
+.stat-violet .stat-value{color:var(--navy);}
+
+.card-title{font-size:13.5px; font-weight:600; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; font-family:'Fraunces',serif;}
+
+.heatmap-wrap{overflow-x:auto; padding-bottom:4px;}
+.heatmap{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,1fr); gap:3px; width:max-content;}
+.hm-cell{width:11px; height:11px; border-radius:2px; background:var(--surface3);}
+.hm-1{background:var(--gold-dim); border:1px solid var(--gold);} .hm-2{background:#CFAF6E;} .hm-3{background:var(--gold);} .hm-4{background:var(--navy);}
+.heatmap-legend{display:flex; align-items:center; gap:6px; margin-top:10px; font-size:10.5px; color:var(--dim);}
+
+.btn{border:1px solid var(--border-strong); background:var(--surface2); color:var(--text); padding:8px 14px; border-radius:7px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; transition:all .12s;}
+.btn:hover{background:var(--surface3); border-color:var(--dim);}
+.btn-primary{background:var(--navy); color:#F5F1E6; border-color:var(--navy-ink); font-weight:600;}
+.btn-primary:hover{background:var(--navy-ink);}
+.btn-block{width:100%; justify-content:center;}
+.btn-sm{padding:5px 10px; font-size:11.5px;}
+.btn-ghost{background:none; border:none;}
+
+.year-tabs{display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; border-bottom:1px solid var(--border); padding-bottom:0;}
+.year-tab{padding:9px 16px; border-radius:6px 6px 0 0; border:1px solid transparent; background:none; color:var(--muted); font-size:13px; font-weight:600; cursor:pointer; margin-bottom:-1px;}
+.year-tab.active{background:var(--surface); border-color:var(--border); border-bottom-color:var(--surface); color:var(--navy);}
+.year-tab .yt-badge{font-size:9.5px; color:var(--gold); font-weight:700; margin-left:5px; text-transform:uppercase; letter-spacing:.4px;}
+
+.sem-block{margin-bottom:26px;}
+.sem-header{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+.sem-header h3{font-size:14.5px; font-weight:600; font-family:'Fraunces',serif;}
+.sem-tag{font-size:10px; padding:3px 9px; border-radius:4px; background:var(--surface2); color:var(--dim); border:1px solid var(--border); font-weight:600;}
+.sem-tag.current{background:var(--gold-dim); color:var(--gold); border-color:var(--gold);}
+
+.subject-card{background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:15px 18px; margin-bottom:11px; box-shadow:var(--shadow-sm);}
+.subject-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.subject-name{font-weight:600; font-size:13.5px;}
+.subject-pct{font-size:12px; color:var(--navy); font-weight:600; font-family:'IBM Plex Mono',monospace;}
+.progress-bar{height:5px; background:var(--surface3); border-radius:3px; overflow:hidden; margin-bottom:12px;}
+.progress-fill{height:100%; background:var(--navy); border-radius:3px; transition:width .3s;}
+.topic-list{display:flex; flex-direction:column; gap:5px;}
+.topic-item{display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted); cursor:pointer; padding:4px 3px; border-radius:5px;}
+.topic-item:hover{background:var(--surface2);}
+.topic-item.done{color:var(--text);}
+.topic-check{width:15px; height:15px; border-radius:4px; border:1.5px solid var(--dim); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:9px;}
+.topic-item.done .topic-check{background:var(--green); border-color:var(--green); color:#fff;}
+.topic-item.done span{text-decoration:line-through; text-decoration-color:var(--dim);}
+
+.form-row{display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+.field{display:flex; flex-direction:column; gap:5px; flex:1; min-width:140px;}
+.field label{font-size:11px; color:var(--muted); font-weight:600;}
+input[type=text],input[type=date],input[type=number],input[type=password],select,textarea{
+  background:var(--surface2); border:1px solid var(--border); border-radius:7px; padding:9px 11px; color:var(--text); font-size:13px; outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--navy); background:var(--surface);}
+textarea{resize:vertical; min-height:70px;}
+
+.log-entry{background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--navy); border-radius:8px; padding:12px 16px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
+.log-date{font-size:10.5px; color:var(--dim); font-family:'IBM Plex Mono',monospace; white-space:nowrap;}
+.log-subject{font-weight:600; font-size:13px; margin:2px 0 4px;}
+.log-notes{font-size:12px; color:var(--muted);}
+.log-hours{font-size:12.5px; color:var(--navy); font-weight:600; font-family:'IBM Plex Mono',monospace; white-space:nowrap;}
+.mood-tag{font-size:10px; padding:2px 8px; border-radius:4px; margin-left:6px; background:var(--surface2); color:var(--muted); font-weight:600;}
+
+.note-card{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-bottom:10px;}
+.note-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+.note-tag{font-size:10px; padding:3px 9px; border-radius:4px; background:var(--gold-dim); color:var(--gold); font-weight:600;}
+.note-body{font-size:12.5px; color:var(--muted); white-space:pre-wrap; line-height:1.6;}
+.note-date{font-size:10.5px; color:var(--dim);}
+
+.chat-shell{display:flex; flex-direction:column; height:600px; background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:var(--shadow-sm);}
+.chat-head{padding:13px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; background:var(--surface2);}
+.chat-dot{width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px var(--green-dim);}
+.chat-messages{flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:14px;}
+.msg{max-width:78%; padding:10px 14px; border-radius:10px; font-size:13px; line-height:1.55;}
+.msg-user{align-self:flex-end; background:var(--navy); color:#F5F1E6; border-bottom-right-radius:3px;}
+.msg-ai{align-self:flex-start; background:var(--surface2); border:1px solid var(--border); border-bottom-left-radius:3px; white-space:pre-wrap;}
+.msg-ai.loading{color:var(--dim); font-style:italic;}
+.chat-input-row{display:flex; gap:10px; padding:14px; border-top:1px solid var(--border);}
+.chat-input-row input{flex:1;}
+.suggestion-chips{display:flex; gap:8px; flex-wrap:wrap; padding:0 18px 14px;}
+.chip{font-size:11px; padding:6px 12px; border-radius:20px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-weight:500;}
+.chip:hover{border-color:var(--navy); color:var(--navy);}
+
+.section-gap{margin-top:30px;}
+.empty-state{text-align:center; padding:40px 20px; color:var(--dim); font-size:12.5px;}
+.chart-wrap{position:relative; height:260px;}
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+@media(max-width:900px){.two-col{grid-template-columns:1fr;}}
+.assumption-note{background:var(--gold-dim); border:1px solid var(--gold); color:var(--gold); font-size:12px; padding:10px 14px; border-radius:7px; margin-bottom:20px;}
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<div id="auth-screen">
+  <div class="auth-split">
+    <div class="auth-side">
+      <div>
+        <div class="auth-crest">C</div>
+        <div class="auth-side-title">Cohort</div>
+        <div class="auth-side-copy">A single place to track your curriculum, your study hours, and your progress toward every semester — built for B.Tech CSE (AI &amp; ML) students.</div>
+      </div>
+      <div class="auth-side-quote">"Progress is tracked one topic, one session, one semester at a time."</div>
+    </div>
+    <div class="auth-form-side">
+      <div class="auth-title">Welcome</div>
+      <div class="auth-sub">Sign in to your study record</div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Log in</button>
+        <button class="auth-tab" data-tab="register">Register</button>
+      </div>
+
+      <div class="auth-error" id="auth-error"></div>
+
+      <form class="auth-form active" id="form-login">
+        <div class="field"><label>Username</label><input type="text" id="login-username" autocomplete="username" required></div>
+        <div class="field"><label>Password</label><input type="password" id="login-password" autocomplete="current-password" required></div>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:6px;">Log in</button>
+      </form>
+
+      <form class="auth-form" id="form-register">
+        <div class="field"><label>Full name</label><input type="text" id="reg-name" placeholder="e.g. Priya Sharma" required></div>
+        <div class="field"><label>University / College</label><input type="text" id="reg-university" placeholder="e.g. MIT Vishwaprayag University" required></div>
+        <div class="row2">
+          <div class="field"><label>Branch</label><input type="text" id="reg-branch" value="B.Tech CSE (AI &amp; ML)" required></div>
+          <div class="field"><label>Current semester</label>
+            <select id="reg-semester">
+              <option value="1">Semester 1</option><option value="2">Semester 2</option>
+              <option value="3" selected>Semester 3</option><option value="4">Semester 4</option>
+              <option value="5">Semester 5</option><option value="6">Semester 6</option>
+              <option value="7">Semester 7</option><option value="8">Semester 8</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Choose a username</label><input type="text" id="reg-username" autocomplete="username" required></div>
+        <div class="row2">
+          <div class="field"><label>Password</label><input type="password" id="reg-password" autocomplete="new-password" required></div>
+          <div class="field"><label>Confirm password</label><input type="password" id="reg-password2" autocomplete="new-password" required></div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:6px;">Create account</button>
+      </form>
+
+      <div class="auth-note">Accounts are stored in this browser only (this device won't sync with others). Your login here is a lightweight identity check for a study tool, not bank-grade security — please don't reuse an important password.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SCREEN ============ -->
+<div id="app-screen">
+<div class="shell">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <div>
+        <div class="brand-name">Cohort</div>
+        <div class="brand-sub" id="sb-branch">B.Tech CSE (AI &amp; ML)</div>
+      </div>
+    </div>
+
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="profile-avatar" id="sb-avatar">--</div>
+        <div>
+          <div class="profile-name" id="sb-name">--</div>
+          <div class="profile-role" id="sb-role">--</div>
+        </div>
+      </div>
+      <div class="profile-uni" id="sb-uni">--</div>
+    </div>
+
+    <nav>
+      <div class="nav-eyebrow">Workspace</div>
+      <button class="nav-item active" data-view="dashboard"><span class="nav-icon">&#9670;</span> Dashboard</button>
+      <button class="nav-item" data-view="curriculum"><span class="nav-icon">&#9636;</span> Curriculum tracker</button>
+      <button class="nav-item" data-view="daily"><span class="nav-icon">&#9655;</span> Daily study log</button>
+      <button class="nav-item" data-view="notes"><span class="nav-icon">&#9998;</span> Notes</button>
+      <button class="nav-item" data-view="analytics"><span class="nav-icon">&#9650;</span> Analytics</button>
+      <button class="nav-item" data-view="mentor"><span class="nav-icon">&#10022;</span> AI mentor</button>
+    </nav>
+
+    <div class="theme-toggle-row">
+      <span class="theme-toggle-label"><span id="theme-icon">&#9728;</span> <span id="theme-label">Light mode</span></span>
+      <label class="switch">
+        <input type="checkbox" id="theme-toggle-input">
+        <div class="switch-track"><div class="switch-thumb"></div></div>
+      </label>
+    </div>
+
+    <button class="logout-btn" id="logout-btn">Log out</button>
+    <div class="sidebar-footer">Study data is saved locally in this browser on this device. Using a different browser or device starts fresh unless you register there too.</div>
+  </div>
+
+  <div class="main">
+
+    <div class="view active" id="view-dashboard">
+      <div class="page-head">
+        <div class="page-eyebrow">Overview</div>
+        <div class="page-title" id="greeting">Welcome back</div>
+        <div class="page-desc" id="dash-desc">Here's where you stand across your B.Tech CSE (AI &amp; ML) journey.</div>
+      </div>
+      <div class="grid grid-4" id="dash-stats"></div>
+      <div class="two-col section-gap">
+        <div class="card">
+          <div class="card-title">Study streak <span class="mono" style="color:var(--dim); font-weight:400; font-size:11px;">last 13 weeks</span></div>
+          <div class="heatmap-wrap"><div class="heatmap" id="heatmap"></div></div>
+          <div class="heatmap-legend">
+            <span>Less</span>
+            <div class="hm-cell"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-4"></div>
+            <span>More</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Quick log entry</div>
+          <div class="field" style="margin-bottom:8px;"><label>Subject</label><select id="quick-subject"></select></div>
+          <div class="field" style="margin-bottom:8px;"><label>Hours studied today</label><input type="number" id="quick-hours" min="0.25" max="16" step="0.25" placeholder="e.g. 1.5"></div>
+          <div class="field" style="margin-bottom:10px;"><label>What did you cover?</label><input type="text" id="quick-notes" placeholder="e.g. Revised binary trees"></div>
+          <button class="btn btn-primary btn-block" id="quick-add-btn">Log today's study</button>
+        </div>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title">Overall curriculum progress <span class="mono" style="font-weight:400; font-size:11px; color:var(--dim);">Year 1 &rarr; Year 4</span></div>
+        <div id="year-progress-bars"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-curriculum">
+      <div class="page-head">
+        <div class="page-eyebrow">Academics</div>
+        <div class="page-title">Curriculum tracker</div>
+        <div class="page-desc">Every subject from 1st year through 4th year. Tick off topics as you complete them.</div>
+      </div>
+      <div class="assumption-note">This uses a standard AICTE-pattern B.Tech CSE (AI &amp; ML) syllabus as a starting template. Ask the AI mentor to help you customize subject names to match your college's exact syllabus.</div>
+      <div class="year-tabs" id="year-tabs"></div>
+      <div id="curriculum-content"></div>
+    </div>
+
+    <div class="view" id="view-daily">
+      <div class="page-head">
+        <div class="page-eyebrow">Consistency</div>
+        <div class="page-title">Daily study log</div>
+        <div class="page-desc">Log what you studied each day to build your streak and keep a revision record.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Add an entry</div>
+        <div class="form-row">
+          <div class="field"><label>Date</label><input type="date" id="log-date"></div>
+          <div class="field"><label>Subject</label><select id="log-subject"></select></div>
+          <div class="field" style="max-width:120px;"><label>Hours</label><input type="number" id="log-hours" min="0.25" max="16" step="0.25"></div>
+          <div class="field" style="max-width:160px;"><label>Mood</label>
+            <select id="log-mood">
+              <option value="Focused">Focused</option><option value="Good">Good</option><option value="Tired">Tired</option><option value="Struggled">Struggled</option><option value="Motivated">Motivated</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:10px;"><label>Topics covered / notes</label><textarea id="log-notes" placeholder="e.g. Solved 5 DP problems, revised OS scheduling algorithms"></textarea></div>
+        <button class="btn btn-primary" id="log-add-btn">Save entry</button>
+      </div>
+      <div class="section-gap">
+        <div class="card-title" style="margin-bottom:12px;">Recent entries</div>
+        <div id="log-list"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-notes">
+      <div class="page-head">
+        <div class="page-eyebrow">Revision material</div>
+        <div class="page-title">Notes</div>
+        <div class="page-desc">Quick notes tagged by subject — good for last-minute revision before exams.</div>
+      </div>
+      <div class="card">
+        <div class="form-row">
+          <div class="field"><label>Subject tag</label><select id="note-subject"></select></div>
+          <div class="field"><label>Title</label><input type="text" id="note-title" placeholder="e.g. Normalization forms"></div>
+        </div>
+        <div class="field" style="margin-bottom:10px;"><label>Note</label><textarea id="note-body" placeholder="Write your note here..." style="min-height:100px;"></textarea></div>
+        <button class="btn btn-primary" id="note-add-btn">Save note</button>
+      </div>
+      <div class="section-gap" id="notes-list"></div>
+    </div>
+
+    <div class="view" id="view-analytics">
+      <div class="page-head">
+        <div class="page-eyebrow">Insights</div>
+        <div class="page-title">Analytics</div>
+        <div class="page-desc">A look at how your study time and progress break down.</div>
+      </div>
+      <div class="grid grid-3" id="analytics-stats"></div>
+      <div class="two-col section-gap">
+        <div class="card">
+          <div class="card-title">Study hours by subject</div>
+          <div class="chart-wrap"><canvas id="chart-subject" role="img" aria-label="Bar chart of study hours per subject"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Weekly study hours trend</div>
+          <div class="chart-wrap"><canvas id="chart-weekly" role="img" aria-label="Line chart of weekly study hours"></canvas></div>
+        </div>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title">Completion by semester</div>
+        <div class="chart-wrap" style="height:300px;"><canvas id="chart-sem" role="img" aria-label="Bar chart of topic completion percentage per semester"></canvas></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-mentor">
+      <div class="page-head">
+        <div class="page-eyebrow">24&times;7</div>
+        <div class="page-title">AI mentor</div>
+        <div class="page-desc">Ask anything — concepts, doubt-solving, exam prep, career advice, or how to structure today's session. It knows your profile.</div>
+      </div>
+      <div class="chat-shell">
+        <div class="chat-head"><div class="chat-dot"></div><div style="font-size:12.5px; font-weight:600;">Mentor is online</div></div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="suggestion-chips">
+          <button class="chip" onclick="chatQuick('Explain normalization in DBMS simply')">Explain a DBMS topic</button>
+          <button class="chip" onclick="chatQuick('Help me plan this week\'s study schedule')">Plan my week</button>
+          <button class="chip" onclick="chatQuick('What should I focus on to prepare for a career in AI/ML?')">Career guidance</button>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Ask your mentor anything...">
+          <button class="btn btn-primary" id="chat-send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+/* ============ THEME TOGGLE ============ */
+(function(){
+  const toggle = document.getElementById('theme-toggle-input');
+  const icon = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+  function applyThemeUI(isDark){
+    icon.innerHTML = isDark ? '&#9789;' : '&#9728;';
+    label.textContent = isDark ? 'Dark mode' : 'Light mode';
+    toggle.checked = isDark;
+  }
+  let saved = 'light';
+  try{ saved = localStorage.getItem('aiml_tracker_theme') || 'light'; }catch(e){}
+  applyThemeUI(saved === 'dark');
+  toggle.addEventListener('change', ()=>{
+    const isDark = toggle.checked;
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    applyThemeUI(isDark);
+    try{ localStorage.setItem('aiml_tracker_theme', isDark ? 'dark' : 'light'); }catch(e){}
+    const analyticsView = document.getElementById('view-analytics');
+    if(analyticsView && analyticsView.classList.contains('active') && typeof renderAnalytics === 'function'){
+      renderAnalytics();
+    }
+  });
+})();
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+/* ============ CURRICULUM DATA (template, shared by all students) ============ */
+const CURRICULUM = [
+  { year:1, sem:1, subjects:[
+    {name:"Engineering Mathematics I", topics:["Matrices & eigenvalues","Differential calculus","Integral calculus","Sequences & series"]},
+    {name:"Engineering Physics", topics:["Quantum mechanics basics","Wave optics","Lasers & fiber optics","Semiconductor physics"]},
+    {name:"Programming in C", topics:["Basics & control flow","Arrays & strings","Functions & recursion","Pointers","File handling"]},
+    {name:"Engineering Graphics", topics:["Orthographic projections","Isometric views","CAD basics"]},
+    {name:"Communicative English", topics:["Grammar & composition","Technical writing","Presentation skills"]},
+    {name:"Environmental Science", topics:["Ecosystems","Pollution control","Sustainability"]},
+  ]},
+  { year:1, sem:2, subjects:[
+    {name:"Engineering Mathematics II", topics:["Linear algebra","Vector calculus","Laplace transforms","Complex numbers"]},
+    {name:"Engineering Chemistry", topics:["Electrochemistry","Polymers","Water treatment"]},
+    {name:"Data Structures using C", topics:["Arrays & linked lists","Stacks & queues","Trees","Graphs","Sorting & searching"]},
+    {name:"OOP with Java", topics:["Classes & objects","Inheritance & polymorphism","Exception handling","Collections framework"]},
+    {name:"Digital Logic Design", topics:["Boolean algebra","Combinational circuits","Sequential circuits","Flip-flops"]},
+  ]},
+  { year:2, sem:3, subjects:[
+    {name:"Discrete Mathematics", topics:["Set theory & logic","Graph theory","Combinatorics","Relations & functions"]},
+    {name:"Database Management Systems", topics:["ER modeling","Relational algebra","SQL","Normalization","Transactions & concurrency"]},
+    {name:"Computer Organization & Architecture", topics:["Instruction sets","Pipelining","Memory hierarchy","I/O organization"]},
+    {name:"Operating Systems", topics:["Process management","CPU scheduling","Memory management","Deadlocks","File systems"]},
+    {name:"Python for AI/ML", topics:["Python fundamentals","NumPy & Pandas","Data visualization","OOP in Python"]},
+  ]},
+  { year:2, sem:4, subjects:[
+    {name:"Design & Analysis of Algorithms", topics:["Asymptotic analysis","Divide & conquer","Greedy algorithms","Dynamic programming","NP-completeness"]},
+    {name:"Probability & Statistics for AI", topics:["Probability theory","Random variables","Statistical inference","Regression analysis"]},
+    {name:"Artificial Intelligence Fundamentals", topics:["Search algorithms","Knowledge representation","Expert systems","Game playing & adversarial search"]},
+    {name:"Java & Web Technologies", topics:["Servlets & JSP","HTML/CSS/JS","REST APIs","Spring basics"]},
+    {name:"Software Engineering", topics:["SDLC models","Requirements engineering","Design patterns","Testing strategies"]},
+  ]},
+  { year:3, sem:5, subjects:[
+    {name:"Machine Learning", topics:["Supervised learning","Unsupervised learning","Model evaluation","Feature engineering","Ensemble methods"]},
+    {name:"Computer Networks", topics:["OSI & TCP/IP model","Routing algorithms","Network security basics","Application layer protocols"]},
+    {name:"Theory of Computation", topics:["Automata theory","Regular languages","Context-free grammars","Turing machines"]},
+    {name:"Data Warehousing & Mining", topics:["ETL processes","OLAP","Association rule mining","Clustering"]},
+    {name:"Elective I", topics:["Topic 1","Topic 2","Topic 3"]},
+  ]},
+  { year:3, sem:6, subjects:[
+    {name:"Deep Learning", topics:["Neural network basics","CNNs","RNNs & LSTMs","Backpropagation","Optimization techniques"]},
+    {name:"Big Data Analytics", topics:["Hadoop ecosystem","Apache Spark","MapReduce","NoSQL databases"]},
+    {name:"Natural Language Processing", topics:["Text preprocessing","Word embeddings","Sequence models","Transformers"]},
+    {name:"Cloud Computing", topics:["Cloud service models","Virtualization","AWS/Azure basics","Deployment"]},
+    {name:"Elective II", topics:["Topic 1","Topic 2","Topic 3"]},
+  ]},
+  { year:4, sem:7, subjects:[
+    {name:"Computer Vision", topics:["Image processing basics","Feature extraction","Object detection","Image segmentation"]},
+    {name:"Reinforcement Learning", topics:["Markov decision processes","Q-learning","Policy gradient methods","Deep RL"]},
+    {name:"MLOps & Model Deployment", topics:["Model versioning","CI/CD for ML","Docker & Kubernetes","Monitoring"]},
+    {name:"Major Project Phase I", topics:["Problem identification","Literature survey","Proposal design"]},
+    {name:"Elective III", topics:["Topic 1","Topic 2","Topic 3"]},
+  ]},
+  { year:4, sem:8, subjects:[
+    {name:"Major Project Phase II", topics:["Implementation","Testing","Documentation","Final presentation"]},
+    {name:"AI Ethics & Governance", topics:["Bias & fairness","Privacy","Responsible AI","Regulations"]},
+    {name:"Industry Internship", topics:["Onboarding","Task execution","Reporting"]},
+    {name:"Elective IV", topics:["Topic 1","Topic 2","Topic 3"]},
+  ]},
+];
+
+function topicId(year,sem,subjIdx,topicIdx){ return `y${year}s${sem}_sub${subjIdx}_t${topicIdx}`; }
+function allSubjects(){
+  const list = [];
+  CURRICULUM.forEach(block=>{ block.subjects.forEach((s,i)=>list.push({name:s.name, year:block.year, sem:block.sem, idx:i})); });
+  return list;
+}
+function totalTopics(){ return CURRICULUM.reduce((a,b)=>a+b.subjects.reduce((x,s)=>x+s.topics.length,0),0); }
+
+/* ============ STATE ============ */
+let CURRENT_USER = null;   // username string
+let PROFILE = null;        // {name, university, branch, semester}
+let progress = {};
+let logs = [];
+let notes = [];
+let chatHistory = [];
+
+/* ============ CRYPTO ============ */
+async function hashPassword(pw){
+  const enc = new TextEncoder().encode(pw);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ============ STORAGE (browser localStorage — works once this file is opened directly) ============ */
+const LS_PREFIX = 'aiml_tracker_';
+
+function lsGet(key, fallback){
+  try{
+    const raw = localStorage.getItem(LS_PREFIX + key);
+    return raw !== null ? JSON.parse(raw) : fallback;
+  }catch(e){ return fallback; }
+}
+function lsSet(key, value){
+  try{ localStorage.setItem(LS_PREFIX + key, JSON.stringify(value)); return true; }
+  catch(e){ console.error('Storage error:', e); return false; }
+}
+function lsDelete(key){
+  try{ localStorage.removeItem(LS_PREFIX + key); }catch(e){}
+}
+
+/* ============ USER DIRECTORY (stored in this browser) ============ */
+async function getDirectory(){ return lsGet('users_directory', {}); }
+async function saveDirectory(dir){ return lsSet('users_directory', dir); }
+
+async function getUserData(username, key, fallback){ return lsGet(`${key}_${username}`, fallback); }
+async function setUserData(username, key, value){ return lsSet(`${key}_${username}`, value); }
+
+/* ============ SESSION (remembers who's logged in on this browser) ============ */
+async function getSession(){ return lsGet('session_username', null); }
+async function setSession(username){ return lsSet('session_username', username); }
+async function clearSession(){ return lsDelete('session_username'); }
+
+/* ============ AUTH UI ============ */
+document.querySelectorAll('.auth-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.auth-form').forEach(f=>f.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('form-'+tab.dataset.tab).classList.add('active');
+    document.getElementById('auth-error').style.display='none';
+  });
+});
+function showAuthError(msg){
+  const el = document.getElementById('auth-error');
+  el.textContent = msg; el.style.display='block';
+}
+
+document.getElementById('form-register').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const name = document.getElementById('reg-name').value.trim();
+  const university = document.getElementById('reg-university').value.trim();
+  const branch = document.getElementById('reg-branch').value.trim() || 'B.Tech CSE (AI & ML)';
+  const semester = parseInt(document.getElementById('reg-semester').value);
+  const username = document.getElementById('reg-username').value.trim().toLowerCase();
+  const pw = document.getElementById('reg-password').value;
+  const pw2 = document.getElementById('reg-password2').value;
+
+  if(!name || !university || !username || !pw){ showAuthError('Please fill in all fields.'); return; }
+  if(pw.length < 4){ showAuthError('Password should be at least 4 characters.'); return; }
+  if(pw !== pw2){ showAuthError('Passwords do not match.'); return; }
+
+  const dir = await getDirectory();
+  if(dir[username]){ showAuthError('That username is already taken. Try another.'); return; }
+
+  const passwordHash = await hashPassword(pw);
+  dir[username] = { name, university, branch, semester, passwordHash, createdAt: new Date().toISOString() };
+  await saveDirectory(dir);
+  await setSession(username);
+  await enterApp(username, dir[username]);
+});
+
+document.getElementById('form-login').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const username = document.getElementById('login-username').value.trim().toLowerCase();
+  const pw = document.getElementById('login-password').value;
+  if(!username || !pw){ showAuthError('Enter your username and password.'); return; }
+
+  const dir = await getDirectory();
+  const user = dir[username];
+  if(!user){ showAuthError("No account found with that username."); return; }
+  const hash = await hashPassword(pw);
+  if(hash !== user.passwordHash){ showAuthError('Incorrect password.'); return; }
+
+  await setSession(username);
+  await enterApp(username, user);
+});
+
+document.getElementById('logout-btn').addEventListener('click', async ()=>{
+  await clearSession();
+  location.reload();
+});
+
+/* ============ ENTER APP ============ */
+async function enterApp(username, userRecord){
+  CURRENT_USER = username;
+  PROFILE = { name: userRecord.name, university: userRecord.university, branch: userRecord.branch, semester: userRecord.semester, year: Math.ceil(userRecord.semester/2) };
+
+  progress = await getUserData(username, 'progress', {});
+  logs = await getUserData(username, 'logs', []);
+  notes = await getUserData(username, 'notes', []);
+  chatHistory = await getUserData(username, 'chat', []);
+
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+
+  const initials = PROFILE.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('sb-avatar').textContent = initials || '--';
+  document.getElementById('sb-name').textContent = PROFILE.name;
+  document.getElementById('sb-role').textContent = `Year ${PROFILE.year} · Semester ${PROFILE.semester}`;
+  document.getElementById('sb-uni').textContent = PROFILE.university;
+  document.getElementById('sb-branch').textContent = PROFILE.branch;
+  document.getElementById('greeting').textContent = `Welcome back, ${PROFILE.name.split(' ')[0]}`;
+  document.getElementById('dash-desc').textContent = `Here's where you stand across your ${PROFILE.branch} journey at ${PROFILE.university} — currently Semester ${PROFILE.semester}.`;
+
+  populateSubjectSelects();
+  renderDashboard();
+  renderYearTabs();
+  renderCurriculumContent();
+  renderLogList();
+  renderNotes();
+  renderChat();
+}
+
+/* ============ AUTO LOGIN CHECK ============ */
+(async function autoLogin(){
+  const savedUsername = await getSession();
+  if(savedUsername){
+    const dir = await getDirectory();
+    if(dir[savedUsername]){ await enterApp(savedUsername, dir[savedUsername]); }
+  }
+})();
+
+/* ============ NAV ============ */
+document.querySelectorAll('.nav-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='analytics') renderAnalytics();
+  });
+});
+
+/* ============ SAVE HELPERS ============ */
+async function saveProgress(){ await setUserData(CURRENT_USER, 'progress', progress); }
+async function saveLogs(){ await setUserData(CURRENT_USER, 'logs', logs); }
+async function saveNotes(){ await setUserData(CURRENT_USER, 'notes', notes); }
+async function saveChat(){ await setUserData(CURRENT_USER, 'chat', chatHistory); }
+
+/* ============ DASHBOARD ============ */
+function computeStreak(){
+  const daysWithLogs = new Set(logs.map(l=>l.date));
+  let streak = 0; let d = new Date();
+  while(true){
+    const key = d.toISOString().slice(0,10);
+    if(daysWithLogs.has(key)){ streak++; d.setDate(d.getDate()-1); } else break;
+  }
+  return streak;
+}
+function totalHours(){ return logs.reduce((a,l)=>a+parseFloat(l.hours||0),0); }
+function doneTopics(){ return Object.values(progress).filter(Boolean).length; }
+
+function renderDashboard(){
+  const streak = computeStreak();
+  const hrs = totalHours();
+  const pct = Math.round((doneTopics()/totalTopics())*100);
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card stat-amber"><div class="stat-label">Study streak</div><div class="stat-value">${streak}d</div><div class="stat-sub">Consecutive days logged</div></div>
+    <div class="stat-card stat-mint"><div class="stat-label">Total hours logged</div><div class="stat-value">${hrs.toFixed(1)}h</div><div class="stat-sub">${logs.length} entries</div></div>
+    <div class="stat-card stat-violet"><div class="stat-label">Curriculum complete</div><div class="stat-value">${pct}%</div><div class="stat-sub">${doneTopics()} / ${totalTopics()} topics</div></div>
+    <div class="stat-card"><div class="stat-label">Current standing</div><div class="stat-value" style="font-size:17px;">Year ${PROFILE.year}, Sem ${PROFILE.semester}</div><div class="stat-sub">${PROFILE.branch}</div></div>
+  `;
+  renderHeatmap();
+  renderYearProgressBars();
+}
+
+function renderHeatmap(){
+  const el = document.getElementById('heatmap');
+  el.innerHTML = '';
+  const hoursByDay = {};
+  logs.forEach(l=>{ hoursByDay[l.date] = (hoursByDay[l.date]||0) + parseFloat(l.hours||0); });
+  const totalDays = 91;
+  const today = new Date();
+  const start = new Date(today); start.setDate(start.getDate() - (totalDays-1));
+  const startDow = start.getDay();
+  for(let i=0;i<startDow;i++){ const c=document.createElement('div'); c.className='hm-cell'; c.style.visibility='hidden'; el.appendChild(c); }
+  for(let i=0;i<totalDays;i++){
+    const d = new Date(start); d.setDate(d.getDate()+i);
+    const key = d.toISOString().slice(0,10);
+    const h = hoursByDay[key]||0;
+    let cls='hm-cell';
+    if(h>0 && h<1) cls+=' hm-1'; else if(h>=1 && h<2) cls+=' hm-2'; else if(h>=2 && h<3.5) cls+=' hm-3'; else if(h>=3.5) cls+=' hm-4';
+    const c = document.createElement('div'); c.className=cls; c.title = key+': '+h.toFixed(1)+'h';
+    el.appendChild(c);
+  }
+}
+
+function renderYearProgressBars(){
+  const byYear = {1:[],2:[],3:[],4:[]};
+  CURRICULUM.forEach(b=>byYear[b.year].push(b));
+  let html='';
+  [1,2,3,4].forEach(y=>{
+    let total=0, done=0;
+    byYear[y].forEach(block=>{
+      block.subjects.forEach((s,si)=>{ s.topics.forEach((t,ti)=>{ total++; if(progress[topicId(block.year,block.sem,si,ti)]) done++; }); });
+    });
+    const pct = total? Math.round(done/total*100):0;
+    html += `<div style="margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px;">
+        <span style="font-weight:600;">Year ${y}${y===PROFILE.year?' <span class=\"sem-tag current\" style=\"margin-left:6px;\">You are here</span>':''}</span>
+        <span class="mono" style="color:var(--navy);">${pct}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;"></div></div>
+    </div>`;
+  });
+  document.getElementById('year-progress-bars').innerHTML = html;
+}
+
+function populateSubjectSelects(){
+  const subs = allSubjects();
+  const opts = subs.map(s=>`<option value="${s.name}">${s.name} (Y${s.year} S${s.sem})</option>`).join('');
+  ['quick-subject','log-subject','note-subject'].forEach(id=>{ document.getElementById(id).innerHTML = opts; });
+}
+
+/* ============ CURRICULUM VIEW ============ */
+let activeYear = 1;
+function renderYearTabs(){
+  activeYear = PROFILE.year;
+  const el = document.getElementById('year-tabs');
+  el.innerHTML = [1,2,3,4].map(y=>`<button class="year-tab ${y===activeYear?'active':''}" data-year="${y}">Year ${y}${y===PROFILE.year?'<span class="yt-badge">current</span>':''}</button>`).join('');
+  el.querySelectorAll('.year-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ activeYear = parseInt(btn.dataset.year); renderYearTabs(); renderCurriculumContent(); });
+  });
+}
+function renderCurriculumContent(){
+  const blocks = CURRICULUM.filter(b=>b.year===activeYear);
+  let html='';
+  blocks.forEach(block=>{
+    const isCurrent = block.year===PROFILE.year && block.sem===PROFILE.semester;
+    html += `<div class="sem-block"><div class="sem-header"><h3>Semester ${block.sem}</h3><span class="sem-tag ${isCurrent?'current':''}">${isCurrent?'Current semester':'Semester '+block.sem}</span></div>`;
+    block.subjects.forEach((s,si)=>{
+      const total = s.topics.length;
+      const done = s.topics.reduce((a,_,ti)=>a+(progress[topicId(block.year,block.sem,si,ti)]?1:0),0);
+      const pct = Math.round(done/total*100);
+      html += `<div class="subject-card">
+        <div class="subject-top"><div class="subject-name">${s.name}</div><div class="subject-pct">${pct}%</div></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;"></div></div>
+        <div class="topic-list">`;
+      s.topics.forEach((t,ti)=>{
+        const id = topicId(block.year,block.sem,si,ti);
+        const isDone = !!progress[id];
+        html += `<div class="topic-item ${isDone?'done':''}" data-id="${id}"><div class="topic-check">${isDone?'&#10003;':''}</div><span>${t}</span></div>`;
+      });
+      html += `</div></div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('curriculum-content').innerHTML = html;
+  document.querySelectorAll('.topic-item').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const id = el.dataset.id;
+      progress[id] = !progress[id];
+      await saveProgress();
+      renderCurriculumContent();
+      renderDashboard();
+    });
+  });
+}
+
+/* ============ DAILY LOG ============ */
+document.getElementById('log-date').valueAsDate = new Date();
+document.getElementById('log-add-btn').addEventListener('click', async ()=>{
+  const date = document.getElementById('log-date').value;
+  const subjectName = document.getElementById('log-subject').value;
+  const hours = document.getElementById('log-hours').value;
+  const mood = document.getElementById('log-mood').value;
+  const noteText = document.getElementById('log-notes').value;
+  if(!date || !subjectName || !hours){ alert('Please fill in date, subject and hours.'); return; }
+  logs.unshift({ id: Date.now().toString(), date, subjectName, hours, mood, notes: noteText });
+  await saveLogs();
+  document.getElementById('log-hours').value='';
+  document.getElementById('log-notes').value='';
+  renderLogList();
+  renderDashboard();
+});
+document.getElementById('quick-add-btn').addEventListener('click', async ()=>{
+  const subjectName = document.getElementById('quick-subject').value;
+  const hours = document.getElementById('quick-hours').value;
+  const noteText = document.getElementById('quick-notes').value;
+  if(!subjectName || !hours){ alert('Please enter hours studied.'); return; }
+  const date = new Date().toISOString().slice(0,10);
+  logs.unshift({ id: Date.now().toString(), date, subjectName, hours, mood:'Good', notes: noteText });
+  await saveLogs();
+  document.getElementById('quick-hours').value='';
+  document.getElementById('quick-notes').value='';
+  renderDashboard();
+  renderLogList();
+});
+function renderLogList(){
+  const el = document.getElementById('log-list');
+  if(logs.length===0){ el.innerHTML = '<div class="empty-state">No entries yet. Log today\'s study above to start your streak.</div>'; return; }
+  el.innerHTML = logs.slice(0,60).map(l=>`
+    <div class="log-entry">
+      <div>
+        <div class="log-date">${l.date}</div>
+        <div class="log-subject">${l.subjectName} <span class="mood-tag">${l.mood||''}</span></div>
+        ${l.notes?`<div class="log-notes">${l.notes}</div>`:''}
+      </div>
+      <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+        <div class="log-hours">${l.hours}h</div>
+        <button class="btn btn-sm btn-ghost" style="color:var(--red);" data-id="${l.id}">Delete</button>
+      </div>
+    </div>`).join('');
+  el.querySelectorAll('button[data-id]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      logs = logs.filter(l=>l.id!==b.dataset.id);
+      await saveLogs();
+      renderLogList();
+      renderDashboard();
+    });
+  });
+}
+
+/* ============ NOTES ============ */
+document.getElementById('note-add-btn').addEventListener('click', async ()=>{
+  const subject = document.getElementById('note-subject').value;
+  const title = document.getElementById('note-title').value;
+  const body = document.getElementById('note-body').value;
+  if(!title || !body){ alert('Add a title and note content.'); return; }
+  notes.unshift({ id: Date.now().toString(), subject, title, body, date: new Date().toISOString().slice(0,10) });
+  await saveNotes();
+  document.getElementById('note-title').value='';
+  document.getElementById('note-body').value='';
+  renderNotes();
+});
+function renderNotes(){
+  const el = document.getElementById('notes-list');
+  if(notes.length===0){ el.innerHTML = '<div class="empty-state">No notes yet. Your revision notes will show up here.</div>'; return; }
+  el.innerHTML = notes.map(n=>`
+    <div class="note-card">
+      <div class="note-top">
+        <div><span class="note-tag">${n.subject}</span> <strong style="margin-left:8px; font-size:13px;">${n.title}</strong></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="note-date">${n.date}</span><button class="btn btn-sm btn-ghost" style="color:var(--red);" data-id="${n.id}">Delete</button></div>
+      </div>
+      <div class="note-body">${n.body}</div>
+    </div>`).join('');
+  el.querySelectorAll('button[data-id]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      notes = notes.filter(n=>n.id!==b.dataset.id);
+      await saveNotes();
+      renderNotes();
+    });
+  });
+}
+
+/* ============ ANALYTICS ============ */
+let chartSubject, chartWeekly, chartSem;
+function renderAnalytics(){
+  const hrs = totalHours();
+  const avgSession = logs.length? (hrs/logs.length).toFixed(1) : '0.0';
+  const activeDays = new Set(logs.map(l=>l.date)).size;
+  document.getElementById('analytics-stats').innerHTML = `
+    <div class="stat-card stat-mint"><div class="stat-label">Total hours</div><div class="stat-value">${hrs.toFixed(1)}h</div></div>
+    <div class="stat-card stat-violet"><div class="stat-label">Avg session length</div><div class="stat-value">${avgSession}h</div></div>
+    <div class="stat-card stat-amber"><div class="stat-label">Active study days</div><div class="stat-value">${activeDays}</div></div>
+  `;
+  const gridColor = cssVar('--border');
+  const tickColor = cssVar('--muted');
+  const navy = cssVar('--navy');
+  const gold = cssVar('--gold');
+
+  const bySubject = {};
+  logs.forEach(l=>{ bySubject[l.subjectName] = (bySubject[l.subjectName]||0) + parseFloat(l.hours||0); });
+  const subjLabels = Object.keys(bySubject);
+  const subjData = subjLabels.map(k=>Math.round(bySubject[k]*10)/10);
+  if(chartSubject) chartSubject.destroy();
+  chartSubject = new Chart(document.getElementById('chart-subject'), {
+    type:'bar',
+    data:{ labels: subjLabels.length?subjLabels:['No data yet'], datasets:[{ label:'Hours', data: subjData.length?subjData:[0], backgroundColor: navy, borderRadius:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ ticks:{ color: tickColor, font:{size:10} }, grid:{display:false} }, y:{ ticks:{ color: tickColor }, grid:{ color: gridColor } } } }
+  });
+  const weekMap = {};
+  logs.forEach(l=>{
+    const d = new Date(l.date);
+    const weekStart = new Date(d); weekStart.setDate(d.getDate()-d.getDay());
+    const key = weekStart.toISOString().slice(0,10);
+    weekMap[key] = (weekMap[key]||0) + parseFloat(l.hours||0);
+  });
+  const weekKeys = Object.keys(weekMap).sort().slice(-10);
+  const weekData = weekKeys.map(k=>Math.round(weekMap[k]*10)/10);
+  if(chartWeekly) chartWeekly.destroy();
+  chartWeekly = new Chart(document.getElementById('chart-weekly'), {
+    type:'line',
+    data:{ labels: weekKeys.length?weekKeys:['This week'], datasets:[{ label:'Hours', data: weekData.length?weekData:[0], borderColor: gold, backgroundColor: 'transparent', fill:false, tension:0.25, pointRadius:3, pointBackgroundColor: gold }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ ticks:{ color: tickColor, font:{size:9} }, grid:{display:false} }, y:{ ticks:{ color: tickColor }, grid:{ color: gridColor } } } }
+  });
+  const semLabels = []; const semData = [];
+  CURRICULUM.forEach(block=>{
+    let total=0, done=0;
+    block.subjects.forEach((s,si)=>{ s.topics.forEach((t,ti)=>{ total++; if(progress[topicId(block.year,block.sem,si,ti)]) done++; }); });
+    semLabels.push(`Y${block.year}S${block.sem}`);
+    semData.push(total? Math.round(done/total*100):0);
+  });
+  if(chartSem) chartSem.destroy();
+  chartSem = new Chart(document.getElementById('chart-sem'), {
+    type:'bar',
+    data:{ labels: semLabels, datasets:[{ label:'% complete', data: semData, backgroundColor: semLabels.map((l,i)=> (CURRICULUM[i].year===PROFILE.year && CURRICULUM[i].sem===PROFILE.semester)?gold:navy), borderRadius:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ ticks:{ color: tickColor }, grid:{display:false} }, y:{ min:0, max:100, ticks:{ color: tickColor }, grid:{ color: gridColor } } } }
+  });
+}
+
+/* ============ AI MENTOR ============ */
+/* Paste your own Anthropic API key below (get one at console.anthropic.com).
+   WARNING: this key will be visible to anyone who views this page's source —
+   only do this for a private/personal site, never a public one. */
+const ANTHROPIC_API_KEY = "PASTE_YOUR_API_KEY_HERE";
+function renderChat(){
+  const el = document.getElementById('chat-messages');
+  const greetName = PROFILE.name.split(' ')[0];
+  el.innerHTML = `<div class="msg msg-ai">Hey ${greetName} — I'm your study mentor, here anytime. I know you're studying ${PROFILE.branch} at ${PROFILE.university}, currently Semester ${PROFILE.semester}. Ask me to explain a concept, help debug your thinking, plan your week, or talk through career direction.</div>`;
+  chatHistory.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'msg ' + (m.role==='user'?'msg-user':'msg-ai');
+    div.textContent = m.content;
+    el.appendChild(div);
+  });
+  el.scrollTop = el.scrollHeight;
+}
+function chatQuick(text){ document.getElementById('chat-input').value = text; sendChat(); }
+async function sendChat(){
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  chatHistory.push({role:'user', content:text});
+  renderChat();
+  await saveChat();
+
+  const el = document.getElementById('chat-messages');
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'msg msg-ai loading';
+  loadingDiv.textContent = 'Thinking...';
+  el.appendChild(loadingDiv);
+  el.scrollTop = el.scrollHeight;
+
+  const systemPrompt = `You are a warm, knowledgeable 24/7 AI study mentor inside a personal academic tracker app for ${PROFILE.name}, a student of ${PROFILE.branch} at ${PROFILE.university}, currently in Semester ${PROFILE.semester} (Year ${PROFILE.year}). Help with: explaining CS/AI/ML concepts clearly and simply, doubt-solving, study planning, exam prep strategy, coding help, and career guidance. Keep answers concise, encouraging, and practical — like a genuinely helpful senior/mentor, not a generic chatbot. Use simple language a student at this level can follow, with examples where useful.`;
+
+  try{
+    if(!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "PASTE_YOUR_API_KEY_HERE"){
+      throw new Error("No API key set");
+    }
+    const apiMessages = chatHistory.slice(-12).map(m=>({role:m.role, content:m.content}));
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system: systemPrompt, messages: apiMessages })
+    });
+    if(!response.ok){
+      const errBody = await response.text();
+      console.error('Anthropic API error:', response.status, errBody);
+      throw new Error('API request failed: ' + response.status);
+    }
+    const data = await response.json();
+    const textResp = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim() || "Sorry, I couldn't generate a response just now — try again.";
+    chatHistory.push({role:'assistant', content:textResp});
+  }catch(err){
+    console.error('Chat error:', err);
+    const isKeyMissing = !ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "PASTE_YOUR_API_KEY_HERE";
+    chatHistory.push({role:'assistant', content: isKeyMissing
+      ? "The mentor isn't set up yet — add your Anthropic API key in the code (search for PASTE_YOUR_API_KEY_HERE) to enable it."
+      : "I'm having trouble connecting right now. Please try again in a moment."});
+  }
+  await saveChat();
+  renderChat();
+}
+document.getElementById('chat-send-btn').addEventListener('click', sendChat);
+document.getElementById('chat-input').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+</script>
+</body>
+</html>
